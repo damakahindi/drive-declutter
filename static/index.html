@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drive Declutter</title>
+<style>
+  :root { --bg:#f5f7fa; --card:#fff; --ink:#1f2933; --mute:#6b7785; --accent:#2563eb; --bad:#dc2626; --ok:#16a34a; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.5 system-ui,Segoe UI,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--card); border-bottom:1px solid #e3e8ef; padding:14px 24px; display:flex; align-items:center; gap:16px; }
+  header h1 { font-size:18px; margin:0; flex:1; }
+  main { max-width:1100px; margin:20px auto; padding:0 16px; }
+  .card { background:var(--card); border-radius:10px; padding:18px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.07); }
+  button { background:var(--accent); color:#fff; border:0; padding:8px 14px; border-radius:6px; cursor:pointer; font-size:14px; }
+  button.secondary { background:#e5e9f0; color:var(--ink); }
+  button.danger { background:var(--bad); }
+  button:disabled { opacity:.5; cursor:default; }
+  .bar { height:14px; background:#e5e9f0; border-radius:7px; overflow:hidden; margin:8px 0; }
+  .bar > div { height:100%; background:var(--accent); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
+  .stat b { display:block; font-size:20px; }
+  .stat span, .mute { color:var(--mute); }
+  .tabs { display:flex; gap:6px; margin-bottom:12px; }
+  .tabs button { background:#e5e9f0; color:var(--ink); }
+  .tabs button.active { background:var(--accent); color:#fff; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid #eef1f5; }
+  td.num, th.num { text-align:right; white-space:nowrap; }
+  .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:10px 0; }
+  input[type=text], input[type=number] { padding:6px 8px; border:1px solid #cdd5df; border-radius:6px; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); }
+  #toast { position:fixed; bottom:20px; right:20px; background:#111827; color:#fff; padding:10px 16px; border-radius:8px; display:none; max-width:420px; }
+  .group { margin-bottom:14px; border:1px solid #eef1f5; border-radius:8px; padding:8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🧹 Drive Declutter</h1>
+  <span id="who" class="mute"></span>
+  <button id="authBtn" class="secondary">Sign out</button>
+</header>
+<main>
+  <div id="signin" class="card" style="display:none">
+    <h3>Sign in to scan your Google Drive</h3>
+    <p class="mute">Runs on your machine only. Files are never deleted permanently — only moved to Drive's trash.</p>
+    <button onclick="location.href='/login'">Sign in with Google</button>
+  </div>
+
+  <div id="app" style="display:none">
+    <div class="card">
+      <div class="grid">
+        <div class="stat"><b id="sUsed">–</b><span>Total used</span></div>
+        <div class="stat"><b id="sDrive">–</b><span>In Drive files</span></div>
+        <div class="stat"><b id="sTrash">–</b><span>In trash</span></div>
+        <div class="stat"><b id="sDupe">–</b><span>Wasted by duplicates</span></div>
+      </div>
+      <div class="bar"><div id="quotaBar" style="width:0"></div></div>
+      <div class="actions">
+        <button id="scanBtn" onclick="scan()">Scan Drive</button>
+        <label>Large ≥ <input id="minMb" type="number" value="50" style="width:70px"> MB</label>
+        <label>Old &gt; <input id="years" type="number" value="2" style="width:50px"> years</label>
+        <span id="scanInfo" class="mute"></span>
+      </div>
+    </div>
+
+    <div class="card" id="advice" style="display:none"></div>
+
+    <div class="card">
+      <div class="tabs">
+        <button data-tab="large" class="active">Large files</button>
+        <button data-tab="dupes">Duplicates</button>
+        <button data-tab="old">Old files</button>
+      </div>
+      <div class="actions">
+        <span id="selInfo" class="mute">0 selected</span>
+        <input id="dest" type="text" placeholder="Archive folder, e.g. E:\DriveArchive" style="width:280px">
+        <button onclick="archive(true)">Archive to disk &amp; trash</button>
+        <button class="secondary" onclick="archive(false)">Archive only (keep in Drive)</button>
+        <button class="danger" onclick="trashSel()">Move to trash</button>
+      </div>
+      <div id="list"><p class="mute">Run a scan to see results.</p></div>
+    </div>
+  </div>
+</main>
+<div id="toast"></div>
+
+<script>
+let report = null, tab = 'large', status = null;
+const sel = new Set(), sizes = {};
+const $ = id => document.getElementById(id);
+const fmt = b => { if (b == null) return '–'; const u = ['B','KB','MB','GB','TB']; let i = 0;
+  while (b >= 1024 && i < 4) { b /= 1024; i++; } return b.toFixed(i ? 1 : 0) + ' ' + u[i]; };
+const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(m) { const t = $('toast'); t.textContent = m; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 5000); }
+async function api(url, opts) { const r = await fetch(url, opts); const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j; }
+const post = (url, body) => api(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body || {}) });
+
+async function init() {
+  status = await api('/api/status');
+  $('signin').style.display = status.signedIn ? 'none' : 'block';
+  $('app').style.display = status.signedIn ? 'block' : 'none';
+  $('who').textContent = status.email || '';
+  $('authBtn').style.display = status.signedIn ? '' : 'none';
+  $('authBtn').onclick = async () => { await post('/logout'); location.reload(); };
+  if (!status.signedIn) return;
+  $('sUsed').textContent = fmt(status.usageBytes);
+  $('sDrive').textContent = fmt(status.driveBytes);
+  $('sTrash').textContent = fmt(status.trashBytes);
+  if (status.limitBytes) $('quotaBar').style.width = Math.min(100, status.usageBytes / status.limitBytes * 100) + '%';
+  if (status.scanned) loadReport();
+}
+
+async function scan() {
+  $('scanBtn').disabled = true; $('scanInfo').textContent = 'Scanning… this can take a few minutes for big drives.';
+  try { const r = await post('/api/scan'); $('scanInfo').textContent = r.count + ' files scanned'; await loadReport(); }
+  catch (e) { toast('Scan failed: ' + e.message); }
+  $('scanBtn').disabled = false;
+}
+
+async function loadReport() {
+  report = await api(`/api/report?minMb=${$('minMb').value}&years=${$('years').value}`);
+  $('sDupe').textContent = fmt(report.wastedByDupes);
+  [...report.large, ...report.old, ...report.duplicates.flatMap(g => g.files)].forEach(f => sizes[f.id] = f.size);
+  sel.clear(); render(); updateAdvice();
+}
+
+function row(f) {
+  return `<tr><td><input type="checkbox" data-id="${f.id}" ${sel.has(f.id) ? 'checked' : ''}></td>
+    <td><a href="${f.link}" target="_blank">${esc(f.name)}</a></td>
+    <td class="mute">${(f.modified || '').slice(0, 10)}</td><td class="num">${fmt(f.size)}</td></tr>`;
+}
+const head = '<tr><th></th><th>Name</th><th>Modified</th><th class="num">Size</th></tr>';
+
+function render() {
+  if (!report) return;
+  let html;
+  if (tab === 'dupes') {
+    html = report.duplicates.map(g => `<div class="group"><b>${g.files.length} copies · ${fmt(g.wasted)} wasted</b>
+      <span class="mute"> (oldest is kept; "Select extras" ticks the rest)</span>
+      <table>${head}${g.files.map(row).join('')}</table>
+      <button class="secondary" onclick="pickExtras('${g.md5}')">Select extras</button></div>`).join('') || '<p>No duplicates found 🎉</p>';
+  } else {
+    const items = tab === 'large' ? report.large : report.old;
+    html = items.length ? `<table>${head}${items.map(row).join('')}</table>` : '<p>Nothing found.</p>';
+  }
+  $('list').innerHTML = html;
+  $('list').querySelectorAll('input[type=checkbox]').forEach(cb => cb.onchange = () => {
+    cb.checked ? sel.add(cb.dataset.id) : sel.delete(cb.dataset.id); updateAdvice();
+  });
+}
+
+function pickExtras(md5) {
+  const g = report.duplicates.find(x => x.md5 === md5);
+  g.files.slice(1).forEach(f => sel.add(f.id)); render(); updateAdvice();
+}
+
+async function updateAdvice() {
+  const bytes = [...sel].reduce((a, id) => a + (sizes[id] || 0), 0);
+  $('selInfo').textContent = `${sel.size} selected · ${fmt(bytes)}`;
+  if (!status || !status.usageBytes) return;
+  const a = await api(`/api/advice?used=${status.usageBytes}&archive=${bytes}`);
+  const box = $('advice'); box.style.display = 'block';
+  box.innerHTML = `<h3>💾 Cheaper storage advice</h3>
+    <p>Now: <b>${a.currentPlan.label}</b> at $${a.currentPlan.monthly.toFixed(2)}/mo →
+    after moving selected files: <b>${a.planAfterArchive.label}</b> at $${a.planAfterArchive.monthly.toFixed(2)}/mo
+    (saves <b>$${a.monthlySaving.toFixed(2)}/mo</b>).</p>
+    <p>Hard disk: <b>${a.hdd.count} × ${a.hdd.label}</b> (one working copy + one backup) ≈ $${a.hdd.oneOffCost.toFixed(0)} one-off.
+    ${a.breakEvenMonths ? `Break-even in <b>${a.breakEvenMonths} months</b>.` : ''}</p>
+    <p>5-year cost: cloud only <b>$${a.fiveYearCloud}</b> vs cloud + disks <b>$${a.fiveYearHybrid}</b> —
+    <b class="${a.worthIt ? 'ok' : 'bad'}">${a.worthIt ? 'moving to disk is cheaper' : 'not worth it at this size'}</b>.</p>
+    <p class="mute">${a.note} Prices are estimates; edit costs.py.</p>`;
+}
+
+async function trashSel() {
+  if (!sel.size || !confirm(`Move ${sel.size} files to Drive trash? (Recoverable for 30 days)`)) return;
+  const r = await post('/api/trash', { ids: [...sel] });
+  toast(`Trashed ${r.trashed.length}, failed ${r.failed.length}`); await init();
+}
+
+async function archive(trashAfter) {
+  const dest = $('dest').value.trim();
+  if (!sel.size) return toast('Select files first');
+  if (!dest) return toast('Enter an archive folder');
+  if (trashAfter && !confirm('Files are checksum-verified before being moved to trash. Continue?')) return;
+  toast('Archiving… keep this tab open.');
+  try {
+    const r = await post('/api/archive', { ids: [...sel], dest, trashAfter });
+    const ok = r.results.filter(x => x.status === 'archived').length;
+    toast(`Archived ${ok}/${r.results.length}`); await init();
+  } catch (e) { toast(e.message); }
+}
+
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); tab = b.dataset.tab; render();
+});
+init();
+</script>
+</body>
+</html>
