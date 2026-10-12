@@ -5,196 +5,323 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Drive Declutter</title>
 <style>
-  :root { --bg:#f5f7fa; --card:#fff; --ink:#1f2933; --mute:#6b7785; --accent:#2563eb; --bad:#dc2626; --ok:#16a34a; }
-  * { box-sizing: border-box; }
+  :root { --bg:#f5f7fa; --card:#fff; --ink:#1f2933; --mute:#6b7785; --accent:#2563eb; --bad:#dc2626; --ok:#16a34a; --line:#eef1f5; }
+  * { box-sizing:border-box; }
   body { margin:0; font:14px/1.5 system-ui,Segoe UI,sans-serif; background:var(--bg); color:var(--ink); }
-  header { background:var(--card); border-bottom:1px solid #e3e8ef; padding:14px 24px; display:flex; align-items:center; gap:16px; }
+  header { background:var(--card); border-bottom:1px solid #e3e8ef; padding:12px 24px; display:flex; align-items:center; gap:12px; }
   header h1 { font-size:18px; margin:0; flex:1; }
-  main { max-width:1100px; margin:20px auto; padding:0 16px; }
+  header img { width:30px; height:30px; border-radius:50%; }
+  main { max-width:1150px; margin:20px auto; padding:0 16px 90px; }
   .card { background:var(--card); border-radius:10px; padding:18px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.07); }
   button { background:var(--accent); color:#fff; border:0; padding:8px 14px; border-radius:6px; cursor:pointer; font-size:14px; }
   button.secondary { background:#e5e9f0; color:var(--ink); }
   button.danger { background:var(--bad); }
+  button.ok { background:var(--ok); }
   button:disabled { opacity:.5; cursor:default; }
-  .bar { height:14px; background:#e5e9f0; border-radius:7px; overflow:hidden; margin:8px 0; }
+  .hero { text-align:center; padding:50px 20px; }
+  .hero h2 { font-size:26px; margin:0 0 8px; }
+  .hero .big { padding:12px 26px; font-size:16px; margin-top:12px; }
+  .steps { text-align:left; max-width:560px; margin:20px auto 0; background:#fff8e6; border-radius:8px; padding:12px 18px; }
+  .bar { height:12px; background:#e5e9f0; border-radius:6px; overflow:hidden; margin:8px 0; }
   .bar > div { height:100%; background:var(--accent); }
-  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; }
   .stat b { display:block; font-size:20px; }
   .stat span, .mute { color:var(--mute); }
-  .tabs { display:flex; gap:6px; margin-bottom:12px; }
+  .tile { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px; cursor:pointer; }
+  .tile:hover { border-color:var(--accent); }
+  .tabs { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
   .tabs button { background:#e5e9f0; color:var(--ink); }
   .tabs button.active { background:var(--accent); color:#fff; }
   table { width:100%; border-collapse:collapse; }
-  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid #eef1f5; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
   td.num, th.num { text-align:right; white-space:nowrap; }
-  .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:10px 0; }
-  input[type=text], input[type=number] { padding:6px 8px; border:1px solid #cdd5df; border-radius:6px; }
-  .ok { color:var(--ok); } .bad { color:var(--bad); }
-  #toast { position:fixed; bottom:20px; right:20px; background:#111827; color:#fff; padding:10px 16px; border-radius:8px; display:none; max-width:420px; }
-  .group { margin-bottom:14px; border:1px solid #eef1f5; border-radius:8px; padding:8px; }
+  td img { width:44px; height:44px; object-fit:cover; border-radius:4px; background:#e5e9f0; display:block; }
+  .gallery { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+  .gcard { border:2px solid transparent; border-radius:8px; background:var(--card); box-shadow:0 1px 2px rgba(0,0,0,.1); overflow:hidden; cursor:pointer; position:relative; }
+  .gcard.sel { border-color:var(--accent); }
+  .gcard img { width:100%; height:110px; object-fit:cover; display:block; background:#e5e9f0; }
+  .gcard div { padding:4px 8px; font-size:12px; }
+  .gcard input { position:absolute; top:6px; left:6px; transform:scale(1.3); }
+  .badge { display:inline-block; font-size:12px; padding:1px 8px; border-radius:10px; background:#e0e7ff; color:#3730a3; }
+  .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:8px 0; }
+  input[type=text], input[type=number], select, textarea { padding:6px 8px; border:1px solid #cdd5df; border-radius:6px; font:inherit; }
+  textarea { width:100%; font-family:Consolas,monospace; font-size:12px; }
+  .ok-t { color:var(--ok); } .bad-t { color:var(--bad); }
+  #toast { position:fixed; bottom:80px; right:20px; background:#111827; color:#fff; padding:10px 16px; border-radius:8px; display:none; max-width:420px; z-index:20; }
+  .group, .bucket { margin-bottom:14px; border:1px solid var(--line); border-radius:8px; padding:10px; }
+  .bucket h4 { margin:0 0 4px; }
+  #bar { position:fixed; bottom:0; left:0; right:0; background:#111827; color:#fff; padding:10px 24px; display:none; gap:8px; align-items:center; flex-wrap:wrap; z-index:10; }
+  #bar input { width:230px; }
+  pre.ex { background:#f1f5f9; padding:10px; border-radius:6px; overflow:auto; font-size:12px; }
+  .rule { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:10px; }
+  .rule .top { display:flex; gap:8px; align-items:center; margin-bottom:6px; }
+  .rule .top input[type=text] { flex:1; }
 </style>
 </head>
 <body>
 <header>
   <h1>🧹 Drive Declutter</h1>
   <span id="who" class="mute"></span>
-  <button id="authBtn" class="secondary">Sign out</button>
+  <img id="photo" style="display:none" referrerpolicy="no-referrer">
+  <button id="authBtn" class="secondary" style="display:none">Sign out</button>
 </header>
 <main>
-  <div id="signin" class="card" style="display:none">
-    <h3>Sign in to scan your Google Drive</h3>
-    <p class="mute">Runs on your machine only. Files are never deleted permanently — only moved to Drive's trash.</p>
-    <button onclick="location.href='/login'">Sign in with Google</button>
+  <div id="signin" class="card hero" style="display:none">
+    <h2>Find what's eating your Google storage</h2>
+    <p class="mute">Large photos and videos, duplicates, old downloads, screenshots — with smart suggestions, not just delete.<br>
+    Runs on your computer. Nothing is deleted permanently.</p>
+    <button class="big" id="signBtn" onclick="location.href='/login'">Sign in with Google</button>
+    <div class="steps" id="setupSteps" style="display:none">
+      <b>One-time setup needed:</b> <code>credentials.json</code> not found. Create a Google Cloud OAuth client
+      (type Web app, redirect <code>http://localhost:5000/oauth2callback</code>), save it next to <code>app.py</code>, then refresh. See README.
+    </div>
   </div>
 
   <div id="app" style="display:none">
     <div class="card">
-      <div class="grid">
-        <div class="stat"><b id="sUsed">–</b><span>Total used</span></div>
-        <div class="stat"><b id="sDrive">–</b><span>In Drive files</span></div>
-        <div class="stat"><b id="sTrash">–</b><span>In trash</span></div>
-        <div class="stat"><b id="sDupe">–</b><span>Wasted by duplicates</span></div>
-      </div>
+      <div class="grid" id="stats"></div>
       <div class="bar"><div id="quotaBar" style="width:0"></div></div>
       <div class="actions">
         <button id="scanBtn" onclick="scan()">Scan Drive</button>
-        <label>Large ≥ <input id="minMb" type="number" value="50" style="width:70px"> MB</label>
-        <label>Old &gt; <input id="years" type="number" value="2" style="width:50px"> years</label>
         <span id="scanInfo" class="mute"></span>
       </div>
+      <div class="grid" id="tiles" style="margin-top:8px"></div>
     </div>
 
     <div class="card" id="advice" style="display:none"></div>
 
     <div class="card">
-      <div class="tabs">
-        <button data-tab="large" class="active">Large files</button>
-        <button data-tab="dupes">Duplicates</button>
-        <button data-tab="old">Old files</button>
+      <div class="tabs" id="tabs">
+        <button data-tab="suggest" class="active">✨ Suggestions</button>
+        <button data-tab="image">🖼 Images</button>
+        <button data-tab="dupes">👯 Duplicates</button>
+        <button data-tab="video">🎬 Videos</button>
+        <button data-tab="archive">📦 Archives</button>
+        <button data-tab="document">📄 Documents</button>
+        <button data-tab="audio">🎵 Audio</button>
+        <button data-tab="other">❓ Other</button>
+        <button data-tab="rules">⚙ Rules</button>
       </div>
-      <div class="actions">
-        <span id="selInfo" class="mute">0 selected</span>
-        <input id="dest" type="text" placeholder="Archive folder, e.g. E:\DriveArchive" style="width:280px">
-        <button onclick="archive(true)">Archive to disk &amp; trash</button>
-        <button class="secondary" onclick="archive(false)">Archive only (keep in Drive)</button>
-        <button class="danger" onclick="trashSel()">Move to trash</button>
-      </div>
-      <div id="list"><p class="mute">Run a scan to see results.</p></div>
+      <div id="view"><p class="mute">Run a scan to see results.</p></div>
     </div>
   </div>
 </main>
+
+<div id="bar">
+  <b id="selInfo">0 selected</b>
+  <input id="dest" type="text" placeholder="Archive folder, e.g. E:\DriveArchive">
+  <button class="ok" onclick="act('archive_trash')">Archive &amp; trash</button>
+  <button class="secondary" onclick="act('archive')">Archive only</button>
+  <button class="secondary" onclick="act('move_review')">Move to Review folder</button>
+  <button class="secondary" onclick="act('ignore')">Keep (ignore)</button>
+  <button class="danger" onclick="act('trash')">Trash</button>
+  <button class="secondary" onclick="clearSel()">Clear</button>
+</div>
 <div id="toast"></div>
 
 <script>
-let report = null, tab = 'large', status = null;
+let status = null, tab = 'suggest', rulesState = null, minMb = 5;
 const sel = new Set(), sizes = {};
 const $ = id => document.getElementById(id);
+const CAT_ICON = {image:'🖼', video:'🎬', audio:'🎵', archive:'📦', document:'📄', other:'❓'};
 const fmt = b => { if (b == null) return '–'; const u = ['B','KB','MB','GB','TB']; let i = 0;
   while (b >= 1024 && i < 4) { b /= 1024; i++; } return b.toFixed(i ? 1 : 0) + ' ' + u[i]; };
-const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function toast(m) { const t = $('toast'); t.textContent = m; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 5000); }
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(m) { const t = $('toast'); t.textContent = m; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 6000); }
 async function api(url, opts) { const r = await fetch(url, opts); const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j; }
-const post = (url, body) => api(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body || {}) });
+const post = (url, body, method) => api(url, { method: method || 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body || {}) });
 
 async function init() {
   status = await api('/api/status');
   $('signin').style.display = status.signedIn ? 'none' : 'block';
   $('app').style.display = status.signedIn ? 'block' : 'none';
-  $('who').textContent = status.email || '';
+  $('setupSteps').style.display = status.credentialsPresent ? 'none' : 'block';
+  $('signBtn').disabled = !status.credentialsPresent;
   $('authBtn').style.display = status.signedIn ? '' : 'none';
   $('authBtn').onclick = async () => { await post('/logout'); location.reload(); };
+  $('who').textContent = status.name ? `${status.name} (${status.email})` : '';
+  if (status.photo) { $('photo').src = status.photo; $('photo').style.display = ''; }
   if (!status.signedIn) return;
-  $('sUsed').textContent = fmt(status.usageBytes);
-  $('sDrive').textContent = fmt(status.driveBytes);
-  $('sTrash').textContent = fmt(status.trashBytes);
-  if (status.limitBytes) $('quotaBar').style.width = Math.min(100, status.usageBytes / status.limitBytes * 100) + '%';
-  if (status.scanned) loadReport();
+  const lim = status.limitBytes;
+  $('stats').innerHTML = [
+    [fmt(status.usageBytes) + (lim ? ' / ' + fmt(lim) : ''), 'Total used'],
+    [fmt(status.driveBytes), 'In Drive files'], [fmt(status.trashBytes), 'In trash'],
+  ].map(([a, b]) => `<div class="stat"><b>${a}</b><span>${b}</span></div>`).join('');
+  if (lim) $('quotaBar').style.width = Math.min(100, status.usageBytes / lim * 100) + '%';
+  if (status.scanned) afterScan();
 }
 
 async function scan() {
   $('scanBtn').disabled = true; $('scanInfo').textContent = 'Scanning… this can take a few minutes for big drives.';
-  try { const r = await post('/api/scan'); $('scanInfo').textContent = r.count + ' files scanned'; await loadReport(); }
+  try { const r = await post('/api/scan'); $('scanInfo').textContent = r.count + ' files scanned'; await afterScan(); }
   catch (e) { toast('Scan failed: ' + e.message); }
   $('scanBtn').disabled = false;
 }
 
-async function loadReport() {
-  report = await api(`/api/report?minMb=${$('minMb').value}&years=${$('years').value}`);
-  $('sDupe').textContent = fmt(report.wastedByDupes);
-  [...report.large, ...report.old, ...report.duplicates.flatMap(g => g.files)].forEach(f => sizes[f.id] = f.size);
-  sel.clear(); render(); updateAdvice();
+async function afterScan() {
+  const o = await api('/api/overview');
+  $('tiles').innerHTML = Object.entries(o.categories).sort((a, b) => b[1].bytes - a[1].bytes).map(([c, v]) =>
+    `<div class="tile" onclick="goTab('${c}')"><b>${CAT_ICON[c]} ${c}</b><br>${fmt(v.bytes)} · ${v.count} files</div>`).join('')
+    + `<div class="tile" onclick="goTab('dupes')"><b>👯 duplicates</b><br>${fmt(o.wastedByDupes)} wasted · ${o.duplicateCount} extra copies</div>`;
+  render(); updateSel();
 }
 
-function row(f) {
-  return `<tr><td><input type="checkbox" data-id="${f.id}" ${sel.has(f.id) ? 'checked' : ''}></td>
-    <td><a href="${f.link}" target="_blank">${esc(f.name)}</a></td>
-    <td class="mute">${(f.modified || '').slice(0, 10)}</td><td class="num">${fmt(f.size)}</td></tr>`;
-}
-const head = '<tr><th></th><th>Name</th><th>Modified</th><th class="num">Size</th></tr>';
+function goTab(t) { document.querySelector(`[data-tab="${t}"]`).click(); }
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); tab = b.dataset.tab; render();
+});
 
-function render() {
-  if (!report) return;
-  let html;
-  if (tab === 'dupes') {
-    html = report.duplicates.map(g => `<div class="group"><b>${g.files.length} copies · ${fmt(g.wasted)} wasted</b>
-      <span class="mute"> (oldest is kept; "Select extras" ticks the rest)</span>
-      <table>${head}${g.files.map(row).join('')}</table>
-      <button class="secondary" onclick="pickExtras('${g.md5}')">Select extras</button></div>`).join('') || '<p>No duplicates found 🎉</p>';
-  } else {
-    const items = tab === 'large' ? report.large : report.old;
-    html = items.length ? `<table>${head}${items.map(row).join('')}</table>` : '<p>Nothing found.</p>';
-  }
-  $('list').innerHTML = html;
-  $('list').querySelectorAll('input[type=checkbox]').forEach(cb => cb.onchange = () => {
-    cb.checked ? sel.add(cb.dataset.id) : sel.delete(cb.dataset.id); updateAdvice();
+function remember(files) { files.forEach(f => sizes[f.id] = f.size); }
+const chk = id => `<input type="checkbox" data-id="${id}" ${sel.has(id) ? 'checked' : ''}>`;
+const thumb = f => f.thumb ? `<img src="${f.thumb}" referrerpolicy="no-referrer" loading="lazy">` : `<img alt="">`;
+const row = f => `<tr><td>${chk(f.id)}</td><td>${thumb(f)}</td><td><a href="${f.link}" target="_blank">${esc(f.name)}</a></td>
+  <td class="mute">${(f.modified || '').slice(0, 10)}</td><td class="num">${fmt(f.size)}</td></tr>`;
+const head = '<tr><th></th><th></th><th>Name</th><th>Modified</th><th class="num">Size</th></tr>';
+const table = files => `<table>${head}${files.map(row).join('')}</table>`;
+
+function bindChecks() {
+  $('view').querySelectorAll('input[type=checkbox][data-id]').forEach(cb => cb.onchange = () => {
+    cb.checked ? sel.add(cb.dataset.id) : sel.delete(cb.dataset.id);
+    const g = cb.closest('.gcard'); if (g) g.classList.toggle('sel', cb.checked);
+    updateSel();
+  });
+  $('view').querySelectorAll('.gcard').forEach(g => g.onclick = e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'A') return;
+    const cb = g.querySelector('input'); cb.checked = !cb.checked; cb.onchange();
   });
 }
 
-function pickExtras(md5) {
-  const g = report.duplicates.find(x => x.md5 === md5);
-  g.files.slice(1).forEach(f => sel.add(f.id)); render(); updateAdvice();
+async function render() {
+  if (tab === 'rules') return renderRules();
+  const v = $('view'); v.innerHTML = '<p class="mute">Loading…</p>';
+  if (tab === 'suggest') {
+    const { buckets } = await api('/api/suggestions');
+    if (!buckets.length) { v.innerHTML = '<p>No suggestions yet. Scan your Drive, or adjust your rules.</p>'; return; }
+    const total = buckets.reduce((a, b) => a + b.bytes, 0);
+    v.innerHTML = `<p>Your rules found <b>${fmt(total)}</b> you could reclaim or tidy.</p>` + buckets.map((b, i) => {
+      remember(b.files);
+      return `<div class="bucket"><h4>${esc(b.rule)} <span class="badge">${esc(b.actionLabel)}</span></h4>
+        <span class="mute">${b.count} files · ${fmt(b.bytes)}${b.count > b.files.length ? ` (showing top ${b.files.length})` : ''}</span>
+        <div class="actions"><button class="secondary" onclick="pickBucket(${i})">Select all in this group</button></div>
+        ${table(b.files)}</div>`; }).join('');
+    window._buckets = buckets;
+  } else if (tab === 'dupes') {
+    const { groups } = await api('/api/duplicates');
+    groups.forEach(g => remember(g.files));
+    v.innerHTML = groups.map((g, i) => `<div class="group"><b>${g.files.length} copies · ${fmt(g.wasted)} wasted</b>
+      <span class="mute"> (oldest is kept)</span>${table(g.files)}
+      <button class="secondary" onclick="pickExtras(${i})">Select extras</button></div>`).join('') || '<p>No duplicates found 🎉</p>';
+    window._groups = groups;
+  } else {
+    const { files, total } = await api(`/api/browse?category=${tab}&minMb=${tab === 'image' ? 0 : minMb}`);
+    remember(files);
+    const bar = `<div class="actions"><label>Min size <input id="mm" type="number" value="${minMb}" style="width:70px"> MB</label>
+      <button class="secondary" onclick="minMb=$('mm').value;render()">Apply</button>
+      <span class="mute">${total} files, showing largest ${files.length}</span></div>`;
+    v.innerHTML = bar + (tab === 'image'
+      ? `<div class="gallery">${files.map(f => `<div class="gcard ${sel.has(f.id) ? 'sel' : ''}">${chk(f.id)}${thumb(f)}
+          <div><b>${fmt(f.size)}</b> · ${(f.modified || '').slice(0, 4)}<br><span class="mute">${esc(f.name.slice(0, 22))}</span></div></div>`).join('')}</div>`
+      : table(files));
+  }
+  bindChecks();
 }
 
-async function updateAdvice() {
+function pickBucket(i) { window._buckets[i].files.forEach(f => sel.add(f.id)); render(); updateSel(); }
+function pickExtras(i) { window._groups[i].files.slice(1).forEach(f => sel.add(f.id)); render(); updateSel(); }
+function clearSel() { sel.clear(); render(); updateSel(); }
+
+async function updateSel() {
   const bytes = [...sel].reduce((a, id) => a + (sizes[id] || 0), 0);
+  $('bar').style.display = sel.size ? 'flex' : 'none';
   $('selInfo').textContent = `${sel.size} selected · ${fmt(bytes)}`;
   if (!status || !status.usageBytes) return;
   const a = await api(`/api/advice?used=${status.usageBytes}&archive=${bytes}`);
   const box = $('advice'); box.style.display = 'block';
   box.innerHTML = `<h3>💾 Cheaper storage advice</h3>
-    <p>Now: <b>${a.currentPlan.label}</b> at $${a.currentPlan.monthly.toFixed(2)}/mo →
-    after moving selected files: <b>${a.planAfterArchive.label}</b> at $${a.planAfterArchive.monthly.toFixed(2)}/mo
-    (saves <b>$${a.monthlySaving.toFixed(2)}/mo</b>).</p>
-    <p>Hard disk: <b>${a.hdd.count} × ${a.hdd.label}</b> (one working copy + one backup) ≈ $${a.hdd.oneOffCost.toFixed(0)} one-off.
-    ${a.breakEvenMonths ? `Break-even in <b>${a.breakEvenMonths} months</b>.` : ''}</p>
-    <p>5-year cost: cloud only <b>$${a.fiveYearCloud}</b> vs cloud + disks <b>$${a.fiveYearHybrid}</b> —
-    <b class="${a.worthIt ? 'ok' : 'bad'}">${a.worthIt ? 'moving to disk is cheaper' : 'not worth it at this size'}</b>.</p>
-    <p class="mute">${a.note} Prices are estimates; edit costs.py.</p>`;
+    <p>Now: <b>${a.currentPlan.label}</b> ($${a.currentPlan.monthly.toFixed(2)}/mo) →
+    if you free the selected files: <b>${a.planAfterArchive.label}</b> ($${a.planAfterArchive.monthly.toFixed(2)}/mo),
+    saving <b>$${a.monthlySaving.toFixed(2)}/mo</b>.</p>
+    <p>Hard disk: <b>${a.hdd.count} × ${a.hdd.label}</b> (working copy + backup) ≈ $${a.hdd.oneOffCost.toFixed(0)} one-off.
+    ${a.breakEvenMonths ? `Break-even in <b>${a.breakEvenMonths} months</b>.` : ''}
+    5-year cost: cloud only <b>$${a.fiveYearCloud}</b> vs cloud + disks <b>$${a.fiveYearHybrid}</b> —
+    <b class="${a.worthIt ? 'ok-t' : 'bad-t'}">${a.worthIt ? 'moving to disk is cheaper' : 'not worth it at this size'}</b>.</p>
+    <p class="mute">${a.note} Estimates only; edit costs.py.</p>`;
 }
 
-async function trashSel() {
-  if (!sel.size || !confirm(`Move ${sel.size} files to Drive trash? (Recoverable for 30 days)`)) return;
-  const r = await post('/api/trash', { ids: [...sel] });
-  toast(`Trashed ${r.trashed.length}, failed ${r.failed.length}`); await init();
-}
-
-async function archive(trashAfter) {
-  const dest = $('dest').value.trim();
-  if (!sel.size) return toast('Select files first');
-  if (!dest) return toast('Enter an archive folder');
-  if (trashAfter && !confirm('Files are checksum-verified before being moved to trash. Continue?')) return;
-  toast('Archiving… keep this tab open.');
+async function act(kind) {
+  if (!sel.size) return;
+  const ids = [...sel];
   try {
-    const r = await post('/api/archive', { ids: [...sel], dest, trashAfter });
-    const ok = r.results.filter(x => x.status === 'archived').length;
-    toast(`Archived ${ok}/${r.results.length}`); await init();
-  } catch (e) { toast(e.message); }
+    if (kind === 'trash') {
+      if (!confirm(`Move ${ids.length} files to Drive trash? (Recoverable for 30 days)`)) return;
+      const r = await post('/api/trash', { ids }); toast(`Trashed ${r.trashed.length}, failed ${r.failed.length}`);
+    } else if (kind === 'move_review') {
+      const r = await post('/api/move', { ids }); toast(`Moved ${r.moved.length} to "Drive Declutter - Review", failed ${r.failed.length}`);
+    } else if (kind === 'ignore') {
+      await post('/api/ignore', { ids }); toast(`${ids.length} files will no longer be suggested`);
+    } else {
+      const dest = $('dest').value.trim();
+      if (!dest) return toast('Enter an archive folder (your hard disk) first');
+      if (kind === 'archive_trash' && !confirm('Each file is checksum-verified on disk before it is moved to trash. Continue?')) return;
+      toast('Archiving… keep this tab open.');
+      const r = await post('/api/archive', { ids, dest, trashAfter: kind === 'archive_trash' });
+      toast(`Archived ${r.results.filter(x => x.status === 'archived').length}/${r.results.length}`);
+    }
+  } catch (e) { return toast(e.message); }
+  sel.clear(); status = await api('/api/status'); await init(); render();
 }
 
-document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
-  document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('active'));
-  b.classList.add('active'); tab = b.dataset.tab; render();
-});
+const EXAMPLES = `{ "category": "image", "minMb": 10 }                      // photos over 10 MB
+{ "category": "video", "olderThanDays": 365 }               // videos not modified in a year
+{ "nameRegex": "^screenshot", "olderThanDays": 90 }         // old screenshots
+{ "extensions": ["exe","msi","dmg","iso"] }                 // installers
+{ "duplicate": true }                                       // extra copies (oldest kept)
+{ "starredOrShared": true }  + action "keep"                // protect these (put it first)
+Keys: category (image|video|audio|archive|document|other), minMb, maxMb, olderThanDays,
+      extensions, nameRegex, duplicate, starredOrShared. All keys in a rule must match.`;
+
+async function renderRules() {
+  rulesState = await api('/api/rules');
+  const acts = Object.entries(rulesState.actions);
+  $('view').innerHTML = `<p>Rules run top to bottom; the <b>first</b> matching rule decides each file's suggestion.</p>
+    <div id="rules">${rulesState.rules.map((r, i) => `<div class="rule" data-i="${i}">
+      <div class="top"><input type="checkbox" class="en" ${r.enabled !== false ? 'checked' : ''}>
+        <input type="text" class="nm" value="${esc(r.name)}">
+        <select class="ac">${acts.map(([k, l]) => `<option value="${k}" ${k === r.action ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
+        <button class="secondary" onclick="moveRule(${i},-1)">↑</button><button class="secondary" onclick="moveRule(${i},1)">↓</button>
+        <button class="danger" onclick="delRule(${i})">✕</button></div>
+      <textarea class="mt" rows="2">${esc(JSON.stringify(r.match))}</textarea></div>`).join('')}</div>
+    <div class="actions"><button onclick="addRule()" class="secondary">+ Add rule</button>
+      <button onclick="saveRules()">Save rules</button>
+      <button class="secondary" onclick="resetRules()">Reset to defaults</button></div>
+    <h4>Rule examples</h4><pre class="ex">${esc(EXAMPLES)}</pre>`;
+}
+function readRules() {
+  return [...document.querySelectorAll('.rule')].map(el => ({
+    name: el.querySelector('.nm').value, enabled: el.querySelector('.en').checked,
+    action: el.querySelector('.ac').value, match: JSON.parse(el.querySelector('.mt').value || '{}') }));
+}
+async function saveRules(list) {
+  try { await post('/api/rules', list || readRules(), 'PUT'); toast('Rules saved'); }
+  catch (e) { toast('Not saved: ' + e.message); }
+}
+function mutate(fn) { try { const l = readRules(); fn(l); rulesState.rules = l; draw(l); } catch (e) { toast('Fix the JSON first: ' + e.message); } }
+function draw(l) {
+  const acts = Object.entries(rulesState.actions);
+  $('rules').innerHTML = l.map((r, i) => `<div class="rule" data-i="${i}">
+    <div class="top"><input type="checkbox" class="en" ${r.enabled !== false ? 'checked' : ''}>
+      <input type="text" class="nm" value="${esc(r.name)}">
+      <select class="ac">${acts.map(([k, lb]) => `<option value="${k}" ${k === r.action ? 'selected' : ''}>${esc(lb)}</option>`).join('')}</select>
+      <button class="secondary" onclick="moveRule(${i},-1)">↑</button><button class="secondary" onclick="moveRule(${i},1)">↓</button>
+      <button class="danger" onclick="delRule(${i})">✕</button></div>
+    <textarea class="mt" rows="2">${esc(JSON.stringify(r.match))}</textarea></div>`).join('');
+}
+function moveRule(i, d) { mutate(l => { const j = i + d; if (j >= 0 && j < l.length) [l[i], l[j]] = [l[j], l[i]]; }); }
+function delRule(i) { mutate(l => l.splice(i, 1)); }
+function addRule() { mutate(l => l.push({ name: 'New rule', enabled: true, action: 'move_review', match: { category: 'image', minMb: 5 } })); }
+async function resetRules() { if (confirm('Replace all rules with the defaults?')) { await saveRules(rulesState.defaults); renderRules(); } }
+
 init();
 </script>
 </body>
